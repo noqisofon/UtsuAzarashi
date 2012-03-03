@@ -2,8 +2,6 @@ package utsuazarashi.app;
 
 import java.io.*;
 import java.util.*;
-
-import org.codehaus.jackson.JsonParseException;
 import org.codehaus.jackson.map.*;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.layout.*;
@@ -15,14 +13,14 @@ import twitter4j.auth.*;
 
 /**
  * @author rihine
- *
+ * 
  */
 public class UtsuAzarashi {
     /**
      *
      */
     public UtsuAzarashi() {
-        
+
     }
 
 
@@ -30,68 +28,78 @@ public class UtsuAzarashi {
      * 
      */
     private void createContents() {
-        this.display_ = new Display();
-        this.shell_ = new Shell( this.display_ );
+        TwitterFactory factory = new TwitterFactory();
+        display = new Display();
+        main_window = new Shell( display );
+        tweet_text = new Text( main_window, SWT.MULTI | SWT.BORDER | SWT.V_SCROLL );
+        twitter = factory.getInstance();
 
-        this.shell_.setLayout( new GridLayout( 1, true ) );
+        // 
+        // main_window
+        // 
+        main_window.setLayout( new GridLayout( 1, true ) );
+        main_window.setText( "欝アザラシ" );
+        main_window.setSize( 320, 240 );
 
-        this.tweet_textbox_ = new Text( this.shell_, SWT.MULTI | SWT.BORDER | SWT.V_SCROLL );
-
+        // 
+        // tweet_text
+        // 
         GridData grid_data1 = new GridData();
         grid_data1.horizontalAlignment = GridData.FILL;
         grid_data1.verticalAlignment = GridData.FILL;
         grid_data1.grabExcessHorizontalSpace = true;
         grid_data1.grabExcessVerticalSpace = true;
+        tweet_text.setLayoutData( grid_data1 );
 
-        this.tweet_textbox_.setLayoutData( grid_data1 );
+        // 
+        // tweet_button
+        // 
+        tweet_button = new Button( main_window, SWT.NULL );
+        tweet_button.setText( "ついーと" );
+        tweet_button.addSelectionListener( new SelectionListener() {
+            @Override
+            public void widgetDefaultSelected(SelectionEvent se) {
+                // TODO Auto-generated method stub
+            }
 
-        this.tweet_button_ = new Button( this.shell_, SWT.NULL );
-        this.tweet_button_.setText( "Update" );
-        this.tweet_button_.addSelectionListener( new SelectionListener () {
-                @Override
-                public void widgetDefaultSelected(SelectionEvent se) {
-                    // TODO Auto-generated method stub
+
+            @Override
+            public void widgetSelected(SelectionEvent se) {
+                String text = tweet_text.getText();
+                if ( text.length() == 0 ) {
+                    showMessageBox( "つぶやく内容が無いよ" );
+
+                    return ;
                 }
-
-
-                @Override
-                public void widgetSelected(SelectionEvent se) {
-                    String text = tweet_textbox_.getText();
-                    if ( text.length() == 0 ) {
-                        MessageBox message_box = new MessageBox( shell_ );
-
-                        message_box.setMessage( "つぶやく内容が無いよ" );
-                        message_box.open();
-
-                        return ;
-                    }
-
-                    try {
-                        /*Status status = */twitter_.updateStatus( text );
-                    } catch ( TwitterException e ) {
-                        // TODO 自動生成された catch ブロック
-                        e.printStackTrace();
-                    }
-                }
-            } );
-
+                tweet( text );
+                tweet_text.setText( "" );
+            }
+        } );
         GridData grid_data2 = new GridData();
         grid_data2.horizontalAlignment = GridData.END;
         grid_data2.verticalAlignment = GridData.BEGINNING;
         grid_data2.grabExcessHorizontalSpace = false;
         grid_data2.grabExcessVerticalSpace = false;
+        tweet_button.setLayoutData( grid_data2 );
 
-        this.tweet_button_.setLayoutData( grid_data2 );
+        // 
+        // twitter
+        //
+        twitter.setOAuthConsumer( TwitterConfig.CONSUMER_KEY, TwitterConfig.CONSUMER_SECRET );
 
-        this.shell_.setText( "欝アザラシ" );
-        this.shell_.setSize( 320, 240 );
-        
-        TwitterFactory factory = new TwitterFactory();
-        AccessToken access_token = loadAccessToken();
+        File path = new File( System.getProperty( "user.home" ) + "/.config/UtsuAzarashi" );
+        File file = new File( path, "user.json" );
 
-        if ( access_token != null ) {
-            this.twitter_ = factory.getInstance();
+        AccessToken access_token = null;
+
+        if ( !file.exists() ) {
+            PinEntryDialog dialog = new PinEntryDialog( main_window );
+
+            access_token = dialog.open();
+        } else {
+            access_token = emisssionAccessToken( path );
         }
+        twitter.setOAuthAccessToken( access_token );
     }
 
 
@@ -101,15 +109,15 @@ public class UtsuAzarashi {
     public void run() {
         createContents();
 
-        this.shell_.open();
-        this.shell_.layout();
+        main_window.open();
+        main_window.layout();
 
-        while ( !this.shell_.isDisposed() ) {
-            if ( !this.display_.readAndDispatch() ) {
-                this.display_.sleep();
+        while ( !main_window.isDisposed() ) {
+            if ( !this.display.readAndDispatch() ) {
+                this.display.sleep();
             }
         }
-        this.display_.dispose();
+        this.display.dispose();
     }
 
 
@@ -118,7 +126,7 @@ public class UtsuAzarashi {
      */
     public static void main(String[] args) {
         UtsuAzarashi progn = new UtsuAzarashi();
-        
+
         progn.run();
     }
 
@@ -126,42 +134,77 @@ public class UtsuAzarashi {
     /**
      * 
      */
-    private AccessToken loadAccessToken() {
-        File file = new File( System.getProperty( "user.home" ) + "/.config/UtsuAzarashi/user.json" );
+    private int showMessageBox(String text) {
+        MessageBox message_box = new MessageBox( main_window );
 
-        if ( !file.exists() ) {
-            PinEntryDialog dialog = new PinEntryDialog( this.shell_ );
-            dialog.open();
-        }
+        message_box.setMessage( text );
 
-        ObjectMapper mapper = new ObjectMapper();
-        Map<String, Object> user_data = null;
-        try {
-            user_data = mapper.readValue( file, Map.class );
-        } catch ( JsonParseException e ) {
-            // TODO 自動生成された catch ブロック
-            e.printStackTrace();
-            
-            return null;
-        } catch ( JsonMappingException e ) {
-            // TODO 自動生成された catch ブロック
-            e.printStackTrace();
-            
-            return null;
-        } catch ( IOException e ) {
-            // TODO 自動生成された catch ブロック
-            e.printStackTrace();
-            
-            return null;
-        }
-
-        return new AccessToken( (String)user_data.get( "accessToken" ), (String)user_data.get( "accessSecret" ) );
+        return message_box.open();
     }
 
 
-    private Display display_;
-    private Shell shell_;
-    private Twitter twitter_;
-    private Text tweet_textbox_;
-    private Button tweet_button_;
+    /**
+     * 
+     */
+    private Status tweet(String tweeting_text) {
+        Status status = null;
+        try {
+            status = twitter.updateStatus( tweeting_text );
+        } catch ( TwitterException e ) {
+            e.printStackTrace();
+
+            return null;
+        }
+        return status;
+    }
+
+
+    /**
+     * 
+     */
+    private static AccessToken emisssionAccessToken(File path) {
+        AccessToken access_token = null;
+        ObjectMapper mapper = new ObjectMapper();
+        Map<String, Object> data = null;
+
+        File file = new File( path, "user.json" );
+        if ( file.exists() ) {
+            try {
+                data = mapper.readValue( file, Map.class );
+            } catch ( IOException ie ) {
+                ie.printStackTrace();
+
+                return null;
+            }
+        } else {
+            return null;
+        }
+
+        String screen_name = (String)data.get( "screenName" );
+
+        System.out.println( "screen name is " + screen_name );
+
+        file = new File( path, screen_name + ".json" );
+        if ( file.exists() ) {
+            try {
+                data = mapper.readValue( file, Map.class );
+            } catch ( IOException ie ) {
+                ie.printStackTrace();
+
+                return null;
+            }
+        } else {
+            return null;
+        }
+
+        access_token = new AccessToken( (String)data.get( "token" ), (String)data.get( "tokenSecret" ) );
+
+        return access_token;
+    }
+
+    private Display display;
+    private Shell   main_window;
+    private Text    tweet_text;
+    private Button  tweet_button;
+    private Twitter twitter;
 }
